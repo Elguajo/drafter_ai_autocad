@@ -3,8 +3,8 @@ import { AnalysisResponse } from "../types";
 import { DRAUGHTSMAN_SYSTEM_PROMPT } from "../constants";
 
 const getClient = () => {
-  // The API key must be obtained exclusively from the environment variable process.env.API_KEY.
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // The API key must be obtained exclusively from the environment variable import.meta.env.VITE_API_KEY.
+  return new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY as string });
 };
 
 // Schema for the JSON output
