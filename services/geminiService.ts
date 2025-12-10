@@ -3,11 +3,8 @@ import { AnalysisResponse } from "../types";
 import { DRAUGHTSMAN_SYSTEM_PROMPT } from "../constants";
 
 const getClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error("API_KEY environment variable is not set.");
-  }
-  return new GoogleGenAI({ apiKey });
+  // The API key must be obtained exclusively from the environment variable process.env.API_KEY.
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 // Schema for the JSON output
