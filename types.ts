@@ -22,3 +22,5 @@ export enum AppState {
   GENERATING = 'GENERATING',
   COMPLETE = 'COMPLETE'
 }
+
+export type ModelTier = 'standard' | 'pro';

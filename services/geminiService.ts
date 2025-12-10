@@ -1,10 +1,10 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { AnalysisResponse } from "../types";
+import { AnalysisResponse, ModelTier } from "../types";
 import { DRAUGHTSMAN_SYSTEM_PROMPT } from "../constants";
 
 const getClient = () => {
-  // The API key must be obtained exclusively from the environment variable import.meta.env.VITE_API_KEY.
-  return new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY as string });
+  // The API key must be obtained exclusively from the environment variable process.env.API_KEY.
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 // Schema for the JSON output
@@ -32,12 +32,17 @@ const analysisSchema: Schema = {
   required: ["detected_orientation", "missing_orientations", "prompts"]
 };
 
-export const analyzeImage = async (base64Image: string, mimeType: string): Promise<AnalysisResponse> => {
+export const analyzeImage = async (base64Image: string, mimeType: string, tier: ModelTier = 'standard'): Promise<AnalysisResponse> => {
   const ai = getClient();
   
+  // Select model based on tier
+  // Standard: gemini-2.5-flash (Fast, efficient)
+  // Pro: gemini-3-pro-preview (Complex reasoning, better prompt adherence)
+  const modelName = tier === 'pro' ? 'gemini-3-pro-preview' : 'gemini-2.5-flash';
+
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: modelName,
       contents: {
         parts: [
           {
@@ -68,15 +73,34 @@ export const analyzeImage = async (base64Image: string, mimeType: string): Promi
   }
 };
 
-export const generateTechnicalView = async (prompt: string): Promise<string> => {
+export const generateTechnicalView = async (prompt: string, referenceImage?: string, referenceMimeType?: string, tier: ModelTier = 'standard'): Promise<string> => {
   const ai = getClient();
 
+  // Select generation model based on tier
+  // Standard: gemini-2.5-flash-image (Good for general tasks)
+  // Pro: gemini-3-pro-image-preview (High quality, better detail)
+  const modelName = tier === 'pro' ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
+
   try {
-    // We use gemini-2.5-flash-image for image generation based on text prompts
+    const parts: any[] = [];
+
+    // If a reference image is provided, include it to guide the generation (Image-to-Image / Editing context)
+    if (referenceImage && referenceMimeType) {
+      parts.push({
+        inlineData: {
+          data: referenceImage,
+          mimeType: referenceMimeType
+        }
+      });
+    }
+
+    // Add the text prompt
+    parts.push({ text: prompt });
+
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-image",
+      model: modelName,
       contents: {
-        parts: [{ text: prompt }]
+        parts: parts
       },
       config: {
         // Ensuring aspect ratio fits standard technical drawing paper formats roughly

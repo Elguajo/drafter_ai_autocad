@@ -4,7 +4,7 @@ import JSZip from 'jszip';
 import Header from './components/Header';
 import BlueprintCard from './components/BlueprintCard';
 import { analyzeImage, generateTechnicalView } from './services/geminiService';
-import { AnalysisResponse, AppState, GeneratedImage } from './types';
+import { AnalysisResponse, AppState, GeneratedImage, ModelTier } from './types';
 
 const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>(AppState.IDLE);
@@ -21,6 +21,7 @@ const App: React.FC = () => {
   // UI State
   const [isLogOpen, setIsLogOpen] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  const [modelTier, setModelTier] = useState<ModelTier>('standard');
 
   // Generated Images Data - Initialize with 4 placeholders for Front, Top, Back, Side
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([
@@ -134,7 +135,7 @@ const App: React.FC = () => {
 
     try {
       // Step 1: Analyze Image
-      const result = await analyzeImage(base64, mimeType);
+      const result = await analyzeImage(base64, mimeType, modelTier);
       setAnalysis(result);
       
       // Define standard order for grid
@@ -155,10 +156,24 @@ const App: React.FC = () => {
       // Step 3: Automatically Generate Views
       const promises = imagesToGenerate.map(async (img) => {
         try {
-          const url = await generateTechnicalView(img.prompt);
+          // IMPORTANT: We pass the source image (base64) to the generator
+          // This ensures the AI uses the original object as a reference for geometry and details
+          const url = await generateTechnicalView(
+            img.prompt, 
+            base64, // Pass source image
+            mimeType, // Pass source mime type
+            modelTier
+          );
           return { ...img, imageUrl: url, loading: false };
-        } catch (e) {
+        } catch (e: any) {
           console.error(`Failed to generate ${img.viewName}`, e);
+          
+          // CRITICAL: Check for Auth/API errors and fail fast to notify user
+          const errorMsg = (e.message || JSON.stringify(e)).toLowerCase();
+          if (errorMsg.includes('api key') || errorMsg.includes('expired') || errorMsg.includes('invalid_argument')) {
+             throw e;
+          }
+
           return { ...img, loading: false };
         }
       });
@@ -167,9 +182,23 @@ const App: React.FC = () => {
       setGeneratedImages(results);
       setAppState(AppState.COMPLETE);
 
-    } catch (error) {
-      console.error(error);
-      alert("Analysis failed. Please try a different image.");
+    } catch (error: any) {
+      console.error("Process failed:", error);
+      
+      let errorMessage = "Analysis failed. Please try a different image.";
+      
+      // Safe string conversion for error checking
+      const errString = (error.message || JSON.stringify(error) || "").toLowerCase();
+
+      if (errString.includes("api key") || errString.includes("expired")) {
+        errorMessage = "API Error: Your API Key has expired or is invalid. Please update your .env.local file.";
+      } else if (errString.includes("429") || errString.includes("quota")) {
+        errorMessage = "API Rate Limit Exceeded. Please try again in a minute.";
+      } else if (errString.includes("model not found")) {
+        errorMessage = `The selected model (${modelTier === 'pro' ? 'Pro' : 'Standard'}) is unavailable. Try switching models.`;
+      }
+
+      alert(errorMessage);
       resetApp();
     }
   };
@@ -221,7 +250,11 @@ const App: React.FC = () => {
       <div className="absolute inset-0 bg-technical-grid pointer-events-none opacity-40 z-0"></div>
       
       <div className="relative z-10">
-        <Header />
+        <Header 
+          currentTier={modelTier} 
+          onTierChange={setModelTier} 
+          disabled={appState !== AppState.IDLE}
+        />
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12">
           
