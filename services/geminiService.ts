@@ -103,7 +103,9 @@ export const generateTechnicalView = async (prompt: string, referenceImage?: str
         parts: parts
       },
       config: {
-        // Ensuring aspect ratio fits standard technical drawing paper formats roughly
+        // Temperature 0.1 is crucial for both Flash and Pro models to ensure strict adherence 
+        // to the technical structure and the provided reference image.
+        temperature: 0.1, 
         imageConfig: {
             aspectRatio: "4:3", 
         }
