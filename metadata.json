@@ -1,0 +1,5 @@
+{
+  "name": "AutoCAD Drafter AI",
+  "description": "An intelligent tool that analyzes an object's orientation and generates the missing orthographic technical blueprints using Gemini models.",
+  "requestFramePermissions": []
+}
